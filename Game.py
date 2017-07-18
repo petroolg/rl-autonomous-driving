@@ -1,12 +1,9 @@
-import numpy as np
+import sys
+
 import pygame
 from pygame.locals import *
-import time
-import sys
-from Rigid_body import Rigid_body, rot
+
 from New_model import *
-from pygame import examples
-from pygame.examples import eventlist
 
 white = (255,255,255)
 black = (0,0,0)
@@ -22,12 +19,12 @@ class Game:
         self.steering = 0
         self.throttle = 0
         self.brakes = 0
-        self.vehicle = Vehicle({'y_vel':-80, 'x':30})
+        self.vehicle = Vehicle(y_vel=-80, x=30)
         self.ov = []
         self.camera_x = self.vehicle.m_pos[0]
         self.camera_y = self.vehicle.m_pos[1]
 
-        self.maneure = False
+        self.same_line, self.over_line = {}, {}
 
         pygame.init()
         self.DISPLAY = pygame.display.set_mode((200, 500), 0, 32)
@@ -85,18 +82,40 @@ class Game:
         if keys[K_LEFT] or keys[K_RIGHT] or keys[K_UP] or keys[K_DOWN]:
             self.move_ticker = 20
 
+    # searching for 4 nearest neighbours:
+    # 2 in the same line and 2 in other line
+    def neighbours(self):
+        self.over_line, self.same_line = {}, {}
+        pos_sign = np.sign(self.vehicle.m_pos[0][0])
+        for w in self.ov:  # type: Vehicle
+            if pos_sign == np.sign(w.m_pos[0][0]):
+                line = self.same_line
+            else:
+                line = self.over_line
+
+            dist = np.linalg.norm(self.vehicle.m_pos - w.m_pos)
+            if len(line) < 2:
+                line[w] = dist
+            else:
+                max_v = max(line, key=(line.get))
+                if dist < line[max_v]:
+                    line.pop(max_v)
+                    line[w] = dist
+
+                    # def is_collision(self):
+                    #     for w in self.ov: #type: Vehicle
+
 
 if __name__ == '__main__':
 
     body = Game()
 
-
-    body.ov.append(Vehicle({'width': 10, 'length': 20, 'color': green, 'x': 30.0, 'y': 60.0, 'y_vel':-30}))
-    body.ov.append(Vehicle({'width': 10, 'length': 20, 'color': red, 'x': 30.0, 'y': -60.0, 'y_vel':-30}))
+    body.ov.append(Vehicle(width=10, length=20, color=green, x=30.0, y=60.0, y_vel=-30))
+    body.ov.append(Vehicle(width=10, length=20, color=red, x=30.0, y=-60.0, y_vel=-30))
 
     # body.ov.append(Vehicle({'width': 10, 'length': 20,'color': red, 'x': -30.0, 'y': 0.0, 'y_vel':-50}))
-    body.ov.append(Vehicle({'width': 10, 'length': 20, 'color': black, 'x': -30.0, 'y': 200.0, 'y_vel':-50}))
-    body.ov.append(Vehicle({'width': 10, 'length': 20, 'color': green, 'x': -30.0, 'y': 40.0, 'y_vel':-50}))
+    body.ov.append(Vehicle(width=10, length=20, color=black, x=-30.0, y=200.0, y_vel=-50))
+    body.ov.append(Vehicle(width=10, length=20, color=black, x=-30.0, y=40.0, y_vel=-50))
     targ = 2
     err =0
     while True:

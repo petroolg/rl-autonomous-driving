@@ -1,9 +1,7 @@
 import numpy as np
-import pygame
-from pygame.locals import *
-import time
-import sys
+
 from Rigid_body import Rigid_body, rot
+
 
 class Wheel:
 
@@ -49,9 +47,8 @@ class Wheel:
         return resp_force
 
 class Vehicle(Rigid_body):
-
-    def __init__(self, params):
-        super().__init__(params)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.wheels = [] #type: list[Wheel]
         self.wheels.append(Wheel(np.array([[self.width],[self.length]]), 0.5))
         self.wheels.append(Wheel(np.array([[-self.width], [self.length]]), 0.5))
@@ -96,11 +93,11 @@ class Vehicle(Rigid_body):
     def keep_line(self, targ_line, targ_vel, prev_err, game):
 
         game.throttle, game.steering, game.brakes = 0,0,0
-        ref = 25 if targ_line == 1 else -25
+        ref = 30 if targ_line == 1 else -30
         err = ref - self.m_pos[0][0]
         derr = err - prev_err
         steering = err * 0.03 + derr*10
-
+        print(err)
         if abs(np.linalg.norm(self.m_vel)) < abs(targ_vel):
             game.throttle = 1
         if abs(np.linalg.norm(self.m_vel)) > abs(targ_vel):

@@ -1,6 +1,7 @@
-import numpy as np
 import pygame
 from pygame.locals import *
+
+from Rect import *
 
 
 def rot(a):
@@ -8,20 +9,18 @@ def rot(a):
 
 
 class Rigid_body:
-
-    def __init__(self, params):
+    def __init__(self, **kwargs):
 
         # graphical
-        self.width = params.get('width', 6)
-        self.length = params.get('length', 15)
-        self.color = params.get('color', (0,0,255))
-        self.icon = np.array([[self.width, self.width, -self.width, -self.width],
-            [self.length, -self.length, -self.length, self.length]])
+        self.width = kwargs.get('width', 6)
+        self.length = kwargs.get('length', 15)
+        self.color = kwargs.get('color', (0, 0, 255))
+        self.body = Rect(kwargs.get('x', 0.0), kwargs.get('y', 0.0), self.width, self.length, kwargs.get('angle', 0))
 
-        self.m_pos = np.array([params.get('x', 0.0), params.get('y', 0.0)])[np.newaxis].T
-        self.m_vel = np.array([params.get('x_vel', 0.0), params.get('y_vel', 0.0)])[np.newaxis].T
+        self.m_vel = np.array([kwargs.get('x_vel', 0.0), kwargs.get('y_vel', 0.0)])[np.newaxis].T
         self.m_forces = np.array([0.0, 0.0])[np.newaxis].T
-        self.m_mass = params.get('mass', 10)
+        self.m_mass = kwargs.get('mass', 10)
+        self.m_pos = np.array([kwargs.get('x', 0.0), kwargs.get('y', 0.0)])[np.newaxis].T
 
         self.m_angle = 0.0
         self.m_ang_vel = 0.0
@@ -59,11 +58,10 @@ class Rigid_body:
 
 
     def draw(self, DISPLAY, font=None, x=0, y=0):
-
-        trans = rot(self.m_angle)
-        par = trans.dot(self.icon) + np.repeat(self.m_pos+np.array([[-x+DISPLAY.get_width()/2],[-y+DISPLAY.get_height()/2]]), 4, axis=1)
-        par = tuple(list(par.T))
-        pygame.draw.polygon(DISPLAY, self.color, par)
+        self.body.rotate(self.m_angle)
+        self.body.translate(self.m_pos[0][0], self.m_pos[1][0])
+        pygame.draw.polygon(DISPLAY, self.color,
+                            self.body.spirit(-x + DISPLAY.get_width() / 2, -y + DISPLAY.get_height() / 2))
         if font:
             text = str('Force: [%.2f, %.2f]'%(self.m_forces[0], self.m_forces[1]))
             text2 = str('Torque: %.2f,' % self.m_torque)

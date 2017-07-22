@@ -1,6 +1,6 @@
 import numpy as np
 
-from Rigid_body import Rigid_body, rot
+from RigidBody import RigidBody, rot
 
 
 class Wheel:
@@ -14,7 +14,6 @@ class Wheel:
         self.m_wheel_inertia = rad*rad
         self.m_wheel_radius = rad
         self.set_steering_angle(0)
-
 
     def set_steering_angle(self, angle):
         #fwd and side vector
@@ -46,14 +45,20 @@ class Wheel:
 
         return resp_force
 
-class Vehicle(Rigid_body):
+
+class Vehicle(RigidBody):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.wheels = [] #type: list[Wheel]
-        self.wheels.append(Wheel(np.array([[self.width],[self.length]]), 0.5))
-        self.wheels.append(Wheel(np.array([[-self.width], [self.length]]), 0.5))
-        self.wheels.append(Wheel(np.array([[self.width], [-self.length]]), 0.5))
-        self.wheels.append(Wheel(np.array([[-self.width], [-self.length]]), 0.5))
+        width = 6
+        length = 15
+        self.wheels.append(Wheel(np.array([[width], [length]]), 0.5))
+        self.wheels.append(Wheel(np.array([[-width], [length]]), 0.5))
+        self.wheels.append(Wheel(np.array([[width], [-length]]), 0.5))
+        self.wheels.append(Wheel(np.array([[-width], [-length]]), 0.5))
+        self.last_err = 0
+        self.y_vel_ref = kwargs.get('y_vel_ref', 0)
+        self.line_ref = kwargs.get('line_ref', 1)
 
     def set_steering(self, steering):
         steeringLock = 0.5
@@ -62,8 +67,15 @@ class Vehicle(Rigid_body):
         self.wheels[2].set_steering_angle(-steering * steeringLock)
         self.wheels[3].set_steering_angle(-steering * steeringLock)
 
+    def get_line(self):
+        if self.x < -25:
+            return 2
+        elif self.x > 25:
+            return 1
+        return 1.5
+
     def set_throttle(self, throttle, all_wheels=False):
-        torque = 20.0
+        torque = 40.0
         if all_wheels:
             self.wheels[0].add_transm_torque(throttle * torque)
             self.wheels[1].add_transm_torque(throttle * torque)
@@ -90,20 +102,20 @@ class Vehicle(Rigid_body):
         super().update(timestep)
         # pygame.time.wait(1)
 
-    def keep_line(self, targ_line, targ_vel, prev_err, game):
-
-        game.throttle, game.steering, game.brakes = 0,0,0
+    def keep_line(self, targ_line=0, targ_vel=0):
+        targ_vel = self.y_vel_ref if targ_vel == 0 else targ_vel
+        targ_line = self.line_ref if targ_line == 0 else targ_line
+        throttle, steering, brakes = 0, 0, 0
         ref = 30 if targ_line == 1 else -30
         err = ref - self.m_pos[0][0]
-        derr = err - prev_err
+        derr = err - self.last_err
         steering = err * 0.03 + derr*10
-        print(err)
+        # print(err)
         if abs(np.linalg.norm(self.m_vel)) < abs(targ_vel):
-            game.throttle = 1
+            throttle = 1
         if abs(np.linalg.norm(self.m_vel)) > abs(targ_vel):
-            game.brakes = 1
-        game.steering = 1 if steering > 1 else steering
-        game.steering = -1 if steering < -1 else steering
-        return err
-
-
+            brakes = 1
+        steering = 1 if steering > 1 else steering
+        steering = -1 if steering < -1 else steering
+        self.last_err = err
+        return throttle, steering, brakes

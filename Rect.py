@@ -13,14 +13,6 @@ class Rect:
         self.length = length
         self.icon = np.array([[self.width, self.width, -self.width, -self.width],
                               [self.length, -self.length, -self.length, self.length]])
-        self.x = self.get_x
-        self.y = self.get_y
-
-    def get_x(self):
-        return self.pos[0]
-
-    def get_y(self):
-        return self.pos[1]
 
     def rotate(self, angle):
         self.angle = angle

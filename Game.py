@@ -1,65 +1,80 @@
 import sys
 
 import pygame
-from pygame.locals import *
+from pygame.locals import K_SPACE, K_DOWN, K_LEFT, K_RIGHT, K_UP, QUIT
 
-from New_model import *
+from Vehicle import *
 
-white = (255,255,255)
-black = (0,0,0)
-green = (0,255,0)
-red = (255,0,0)
-blue = (0,0,255)
-d_green=(0,176,0)
-grey=(95,95,95)
+white = (255, 255, 255)
+black = (0, 0, 0)
+green = (0, 255, 0)
+red = (255, 0, 0)
+blue = (0, 0, 255)
+d_green = (0, 176, 0)
+grey = (95, 95, 95)
+
 
 class Game:
-
-    def __init__(self):
+    def __init__(self, aut_car, other_cars, learning=True):
         self.steering = 0
         self.throttle = 0
         self.brakes = 0
-        self.vehicle = Vehicle(y_vel=-80, x=30)
-        self.ov = []
-        self.camera_x = self.vehicle.m_pos[0]
-        self.camera_y = self.vehicle.m_pos[1]
-
+        self.time = 0
+        self.vehicle = aut_car
+        self.ov = other_cars
+        self.camera_x = aut_car.m_pos[0]
+        self.camera_y = aut_car.m_pos[1]
+        self.move_ticker = 0
+        self.game_over = False
         self.same_line, self.over_line = {}, {}
+        self.last_a = 1
+        self.all_actions = [0, 1, 2]
+        self.learning = learning
+        if not learning:
+            pygame.init()
+            self.DISPLAY = pygame.display.set_mode((200, 500), 0, 32)
 
-        pygame.init()
-        self.DISPLAY = pygame.display.set_mode((200, 500), 0, 32)
+            pygame.font.init()  # you have to call this at the start,
+            # if you want to use this module.
+            self.myfont = pygame.font.SysFont('Helvetica', 16)
 
-        pygame.font.init()  # you have to call this at the start,
-        # if you want to use this module.
-        self.myfont = pygame.font.SysFont('Helvetica', 16)
 
     def do_frame(self):
-        self.DISPLAY.fill(white)
+
         self.vehicle.set_steering(self.steering)
         self.vehicle.set_brakes(self.brakes)
         self.vehicle.set_throttle(self.throttle)
+        for v in self.ov:
+            v.set_steering(v.steering)
+            v.set_brakes(v.brakes)
+            v.set_throttle(v.throttle)
         self.vehicle.update(0.01)
         for v in self.ov:
             v.update(0.01)
+        self.time += 0.011
 
-    def render(self):
-
+    def render(self, targ_line, targ_vel):
+        self.DISPLAY.fill(white)
         pygame.draw.polygon(self.DISPLAY, d_green, [(0, 0), (50, 0), (50, 500), (0, 500)])
         pygame.draw.polygon(self.DISPLAY, d_green, [(150, 0), (200, 0), (200, 500), (150, 500)])
         pygame.draw.polygon(self.DISPLAY, grey, [(50, 0), (150, 0), (150, 500), (50, 500)])
 
         for i in range(26):
-            pygame.draw.polygon(self.DISPLAY, white, [(98, 0-self.camera_y%20+i*20), (102, 0-self.camera_y%20+i*20),
-                                                      (102, 10-self.camera_y%20+i*20), (98, 10-self.camera_y%20+i*20)])
+            pygame.draw.polygon(self.DISPLAY, white,
+                                [(98, 0 - self.camera_y % 20 + i * 20), (102, 0 - self.camera_y % 20 + i * 20),
+                                 (102, 10 - self.camera_y % 20 + i * 20), (98, 10 - self.camera_y % 20 + i * 20)])
 
         self.vehicle.draw(self.DISPLAY, font=self.myfont, x=0, y=self.camera_y[0])
         for c in self.ov:
-            c.draw(self.DISPLAY, x=0, y=self.camera_y[0])
+            c.draw(self.DISPLAY, font=self.myfont, x=0, y=self.camera_y[0])
         text = str('Keys: %.2f, %.2f, %.2f' % (self.steering, self.brakes, self.throttle))
         text = self.myfont.render(text, True, (0, 0, 0))
-        self.DISPLAY.blit(text, (0, 30))
-        pygame.display.update()
 
+        self.DISPLAY.blit(text, (0, 0))
+        text = self.myfont.render('line:' + str(targ_line) + ' speed:' + str(targ_vel), True, (0, 0, 0))
+        self.DISPLAY.blit(text, (0, 15))
+
+        pygame.display.update()
 
     def process_keys(self):
         keys = pygame.key.get_pressed()
@@ -86,50 +101,74 @@ class Game:
     # 2 in the same line and 2 in other line
     def neighbours(self):
         self.over_line, self.same_line = {}, {}
-        pos_sign = np.sign(self.vehicle.m_pos[0][0])
         for w in self.ov:  # type: Vehicle
-            if pos_sign == np.sign(w.m_pos[0][0]):
-                line = self.same_line
-            else:
-                line = self.over_line
-
+            line = self.same_line if np.sign(w.x) > 0 else self.over_line
             dist = np.linalg.norm(self.vehicle.m_pos - w.m_pos)
             if len(line) < 2:
                 line[w] = dist
             else:
-                max_v = max(line, key=(line.get))
+                max_v = max(line, key=line.get)
                 if dist < line[max_v]:
                     line.pop(max_v)
                     line[w] = dist
 
-                    # def is_collision(self):
-                    #     for w in self.ov: #type: Vehicle
+    def is_collision(self):
+        self.neighbours()
+        neigh = list(self.same_line.items()) + list(self.over_line.items())
+        lst = [not self.vehicle.body.intersect(w[0].body) for w in neigh]
+        return not np.all(lst)
 
+    def game_over(self):
+        return self.game_over
 
-if __name__ == '__main__':
+    def get_state(self):
 
-    body = Game()
+        state = [self.vehicle.m_vel[1][0] / 100, self.vehicle.get_line()]
+        for v in (list(self.same_line.items()) + list(self.over_line.items())):
+            state += [v[0].m_vel[1][0] / 100, (self.vehicle.m_pos[1] - v[0].m_pos[1])[0] / 100, v[0].get_line()]
+        return np.array(state)
 
-    body.ov.append(Vehicle(width=10, length=20, color=green, x=30.0, y=60.0, y_vel=-30))
-    body.ov.append(Vehicle(width=10, length=20, color=red, x=30.0, y=-60.0, y_vel=-30))
+    def reward(self, a):
+        if self.is_collision():
+            self.game_over = True
+            return -3000
+        r = 0
+        if self.last_a != a:
+            r += -200
+        dst = -(self.vehicle.m_pos[1] - list(self.same_line.items())[1][0].m_pos[1])[0]
+        r += dst / 100 * 5
+        if self.vehicle.get_line() == 2:
+            r += 100
+        r -= self.time * 2
+        if self.vehicle.y < -4000:
+            self.game_over = True
 
-    # body.ov.append(Vehicle({'width': 10, 'length': 20,'color': red, 'x': -30.0, 'y': 0.0, 'y_vel':-50}))
-    body.ov.append(Vehicle(width=10, length=20, color=black, x=-30.0, y=200.0, y_vel=-50))
-    body.ov.append(Vehicle(width=10, length=20, color=black, x=-30.0, y=40.0, y_vel=-50))
-    targ = 2
-    err =0
-    while True:
-        # offs = body.world_to_rel(np.array([20, 0])[np.newaxis].T)
-        # body.update(0.01)
-        # body.add_force(np.array([0, 0.0005])[np.newaxis].T, offs)
-        # body.draw()
-        # body.process_keys()
-        body.do_frame()
-        body.render()
-        err = body.vehicle.keep_line(targ, -30, err, body)
-        # time.sleep(1)
+        return r
 
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                pygame.quit()
-                sys.exit()
+    def move(self, targ_line):
+        if targ_line == 0:
+            targ_line = self.last_a
+
+        reference = self.same_line if targ_line == 1 else self.over_line
+        targ_vel = list(reference.items())[1][0].y_vel_ref
+
+        # print(targ_vel)
+        rew = self.reward(targ_line)
+        self.last_a = targ_line
+
+        self.throttle, self.steering, self.brakes = self.vehicle.keep_line(targ_line, targ_vel)
+
+        for v in self.ov:  # type: Vehicle
+            v.throttle, v.steering, v.brakes = v.keep_line()
+
+        self.do_frame()
+        if not self.learning:
+            self.render(targ_line, targ_vel)
+
+            # print(self.vehicle.y)
+
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+        return rew

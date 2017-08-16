@@ -30,13 +30,12 @@ class Wheel:
         patch_speed = -self.m_fwd_axis*self.m_wheel_speed*self.m_wheel_radius
         vel_diff = relative_ground_speed + patch_speed
 
-
-        side_vel = vel_diff.T.dot(self.m_side_axis)*self.m_side_axis #/np.linalg.norm(self.m_side_axis)
+        side_vel = vel_diff.T.dot(self.m_side_axis) * self.m_side_axis
         forw_mag = vel_diff.T.dot(self.m_fwd_axis)
-        fwd_vel = forw_mag*self.m_fwd_axis #/np.linalg.norm(self.m_fwd_axis)
+        fwd_vel = forw_mag * self.m_fwd_axis
 
         #friction forces
-        resp_force = -side_vel * 2
+        resp_force = -side_vel * 2.0
         resp_force -= fwd_vel
 
         self.m_wheel_torque += forw_mag * self.m_wheel_radius
@@ -50,8 +49,8 @@ class Vehicle(RigidBody):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.wheels = [] #type: list[Wheel]
-        width = 6
-        length = 15
+        width = 10.0
+        length = 14.0
         self.wheels.append(Wheel(np.array([[width], [length]]), 0.5))
         self.wheels.append(Wheel(np.array([[-width], [length]]), 0.5))
         self.wheels.append(Wheel(np.array([[width], [-length]]), 0.5))
@@ -67,15 +66,16 @@ class Vehicle(RigidBody):
         self.wheels[2].set_steering_angle(-steering * steeringLock)
         self.wheels[3].set_steering_angle(-steering * steeringLock)
 
-    def get_line(self):
+    @property
+    def line(self):
         if self.x < -25:
-            return 2
+            return -1
         elif self.x > 25:
             return 1
-        return 1.5
+        return 0
 
     def set_throttle(self, throttle, all_wheels=False):
-        torque = 40.0
+        torque = 10.0
         if all_wheels:
             self.wheels[0].add_transm_torque(throttle * torque)
             self.wheels[1].add_transm_torque(throttle * torque)

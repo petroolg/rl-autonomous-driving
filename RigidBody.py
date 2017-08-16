@@ -16,7 +16,7 @@ class RigidBody:
 
         self.m_vel = np.array([kwargs.get('x_vel', 0.0), kwargs.get('y_vel', 0.0)])[np.newaxis].T
         self.m_forces = np.array([0.0, 0.0])[np.newaxis].T
-        self.m_mass = kwargs.get('mass', 10)
+        self.m_mass = kwargs.get('mass', 10.0)
         self.m_pos = np.array([kwargs.get('x', 0.0), kwargs.get('y', 0.0)])[np.newaxis].T
 
         self.m_angle = 0.0
@@ -31,6 +31,14 @@ class RigidBody:
     @property
     def y(self):
         return self.m_pos[1][0]
+
+    @property
+    def x_vel(self):
+        return self.m_vel[0]
+
+    @property
+    def y_vel(self):
+        return self.m_vel[1]
 
     def update(self, timestep):
         acc = self.m_forces / self.m_mass
@@ -77,7 +85,55 @@ class RigidBody:
 
         text = font.render(str(self.id), True, (0, 0, 0))
         display.blit(text, (
-        self.x - x + display.get_width() / 2 - self.width, self.y - y + display.get_height() / 2 - self.length))
+            self.x - x + display.get_width() / 2 - text.get_width() / 2,
+            self.y - y + display.get_height() / 2 - text.get_height() / 2))
 
         # self.m_torque = 0
         # self.m_forces = np.zeros_like(self.m_forces)
+
+
+class DummyVehicle:
+    def __init__(self, *args, **kwargs):
+        self.id = kwargs.get('id', 0)
+        self.width = kwargs.get('width', 10)
+        self.length = kwargs.get('length', 20)
+        self.color = kwargs.get('color', (0, 0, 255))
+        self.body = Rect(kwargs.get('x', 0.0), kwargs.get('y', 0.0), self.width, self.length, kwargs.get('angle', 0))
+        self.m_vel = np.array([kwargs.get('x_vel', 0.0), kwargs.get('y_vel', 0.0)])[np.newaxis].T
+        self.m_pos = np.array([kwargs.get('x', 0.0), kwargs.get('y', 0.0)])[np.newaxis].T
+
+    def draw(self, display, font=None, x=0, y=0):
+        self.body.translate(self.x, self.y)
+        pygame.draw.polygon(display, self.color,
+                            self.body.spirit(-x + display.get_width() / 2, -y + display.get_height() / 2))
+        text = font.render(str(self.id), True, (0, 0, 0))
+        display.blit(text,
+                     (self.x - x + display.get_width() / 2 - text.get_width() / 2,
+                      self.y - y + display.get_height() / 2 - text.get_height() / 2))
+
+    def update(self, timestep):
+        self.m_pos += self.m_vel * timestep
+
+    @property
+    def x(self):
+        return self.m_pos[0][0]
+
+    @property
+    def y(self):
+        return self.m_pos[1][0]
+
+    @property
+    def line(self):
+        return np.sign(self.x)
+
+    @property
+    def y_vel_ref(self):
+        return self.m_vel[1]
+
+    @property
+    def x_vel(self):
+        return self.m_vel[0]
+
+    @property
+    def y_vel(self):
+        return self.m_vel[1]

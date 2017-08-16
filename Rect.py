@@ -38,12 +38,13 @@ class Rect:
         for axis in axes:
             proj_a = []
             proj_b = []
+            nrm = np.linalg.norm(axis)
             for i in range(4):
                 p = a[i]
-                proj_a.append(axis.T.dot(p.T.dot(axis) / np.linalg.norm(axis) ** 2 * axis))
+                proj_a.append(axis.T.dot(p.T.dot(axis) / (nrm * nrm) * axis))
             for i in range(4):
                 p = b[i]
-                proj_b.append(axis.T.dot(p.T.dot(axis) / np.linalg.norm(axis) ** 2 * axis))
+                proj_b.append(axis.T.dot(p.T.dot(axis) / (nrm * nrm) * axis))
 
             min_v = proj_a if min(proj_a) < min(proj_b) else proj_b
             max_v = proj_b if min_v == proj_a else proj_a

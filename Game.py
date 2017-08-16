@@ -26,7 +26,7 @@ class Game:
         self.camera_y = aut_car.m_pos[1]
         self.move_ticker = 0
         self.game_over = False
-        self.same_line, self.over_line = {}, {}
+        self.same_line, self.over_line = [], []
         self.last_a = 1
         self.all_actions = [0, 1, 2]
         self.learning = learning
@@ -44,14 +44,10 @@ class Game:
         self.vehicle.set_steering(self.steering)
         self.vehicle.set_brakes(self.brakes)
         self.vehicle.set_throttle(self.throttle)
-        for v in self.ov:
-            v.set_steering(v.steering)
-            v.set_brakes(v.brakes)
-            v.set_throttle(v.throttle)
         self.vehicle.update(0.01)
         for v in self.ov:
             v.update(0.01)
-        self.time += 0.011
+        self.time += 0.01
 
     def render(self, targ_line, targ_vel):
         self.DISPLAY.fill(white)
@@ -100,9 +96,9 @@ class Game:
     # searching for 4 nearest neighbours:
     # 2 in the same line and 2 in other line
     def neighbours(self):
-        self.over_line, self.same_line = {}, {}
+        over_line, same_line = {}, {}  # type: dict
         for w in self.ov:  # type: Vehicle
-            line = self.same_line if np.sign(w.x) > 0 else self.over_line
+            line = same_line if np.sign(w.x) > 0 else over_line
             dist = np.linalg.norm(self.vehicle.m_pos - w.m_pos)
             if len(line) < 2:
                 line[w] = dist
@@ -112,35 +108,41 @@ class Game:
                     line.pop(max_v)
                     line[w] = dist
 
+        self.over_line = sorted(over_line.keys(), key=lambda v: v.y)
+        self.same_line = sorted(same_line.keys(), key=lambda v: v.y)
+
     def is_collision(self):
         self.neighbours()
-        neigh = list(self.same_line.items()) + list(self.over_line.items())
-        lst = [not self.vehicle.body.intersect(w[0].body) for w in neigh]
+        neigh = self.same_line + self.over_line
+        lst = [not self.vehicle.body.intersect(w.body) for w in neigh]
         return not np.all(lst)
 
     def game_over(self):
         return self.game_over
 
     def get_state(self):
+        vy = self.vehicle.y_vel
+        vx = self.vehicle.x_vel
+        state = [vx, vy, self.vehicle.x]
 
-        state = [self.vehicle.m_vel[1][0] / 100, self.vehicle.get_line()]
-        for v in (list(self.same_line.items()) + list(self.over_line.items())):
-            state += [v[0].m_vel[1][0] / 100, (self.vehicle.m_pos[1] - v[0].m_pos[1])[0] / 100, v[0].get_line()]
+        for v in (self.same_line + self.over_line):
+            vel = v.y_vel
+            dy = (self.vehicle.y - v.y)
+            dx = (self.vehicle.x - v.x)
+            state += [vel, dy, dx]
         return np.array(state)
 
     def reward(self, a):
         if self.is_collision():
             self.game_over = True
-            return -3000
+            return -100000
         r = 0
         if self.last_a != a:
             r += -200
-        dst = -(self.vehicle.m_pos[1] - list(self.same_line.items())[1][0].m_pos[1])[0]
-        r += dst / 100 * 5
-        if self.vehicle.get_line() == 2:
-            r += 100
-        r -= self.time * 2
-        if self.vehicle.y < -4000:
+        dst = -(self.vehicle.y - self.same_line[0].y)
+        r += dst
+        r -= 1
+        if self.vehicle.y < -2000:
             self.game_over = True
 
         return r
@@ -150,18 +152,16 @@ class Game:
             targ_line = self.last_a
 
         reference = self.same_line if targ_line == 1 else self.over_line
-        targ_vel = list(reference.items())[1][0].y_vel_ref
+        targ_vel = reference[0].y_vel_ref
 
         # print(targ_vel)
         rew = self.reward(targ_line)
         self.last_a = targ_line
 
         self.throttle, self.steering, self.brakes = self.vehicle.keep_line(targ_line, targ_vel)
-
-        for v in self.ov:  # type: Vehicle
-            v.throttle, v.steering, v.brakes = v.keep_line()
-
-        self.do_frame()
+        # self.process_keys()
+        for _ in range(10):
+            self.do_frame()
         if not self.learning:
             self.render(targ_line, targ_vel)
 

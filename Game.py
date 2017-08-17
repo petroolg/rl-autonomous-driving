@@ -10,6 +10,9 @@ black = (0, 0, 0)
 green = (0, 255, 0)
 red = (255, 0, 0)
 blue = (0, 0, 255)
+l_blue = (153,217,234)
+orange=(255,128,64)
+violet = (128,0,128)
 d_green = (0, 176, 0)
 grey = (95, 95, 95)
 
@@ -39,15 +42,16 @@ class Game:
             self.myfont = pygame.font.SysFont('Helvetica', 16)
 
 
-    def do_frame(self):
+    def do_frame(self, n):
 
         self.vehicle.set_steering(self.steering)
         self.vehicle.set_brakes(self.brakes)
         self.vehicle.set_throttle(self.throttle)
-        self.vehicle.update(0.01)
+        for i in range(n):
+            self.vehicle.update(0.01)
         for v in self.ov:
-            v.update(0.01)
-        self.time += 0.01
+            v.update(0.01*n)
+        self.time += 0.01*n
 
     def render(self, targ_line, targ_vel):
         self.DISPLAY.fill(white)
@@ -79,19 +83,20 @@ class Game:
             self.steering = 1
         elif keys[K_LEFT]:
             self.steering = -1
-        else:
-            self.steering = 0
-        if keys[K_UP]:
-            if self.throttle < 0.9:
-                self.throttle += 0.1
-        else:
-            self.throttle -= 0.1 if self.throttle > 0.1 else 0
-        if keys[K_DOWN] or keys[K_SPACE]:
-            self.brakes = 1
-        else:
-            self.brakes -= 0.1 if self.brakes > 0.1 else 0
-        if keys[K_LEFT] or keys[K_RIGHT] or keys[K_UP] or keys[K_DOWN]:
-            self.move_ticker = 20
+        # else:
+        #     self.steering = 0
+        # if keys[K_UP]:
+        #     if self.throttle < 0.9:
+        #         self.throttle += 0.1
+        # else:
+        #     self.throttle -= 0.1 if self.throttle > 0.1 else 0
+        # if keys[K_DOWN] or keys[K_SPACE]:
+        #     self.brakes = 1
+        # else:
+        #     self.brakes -= 0.1 if self.brakes > 0.1 else 0
+        # if keys[K_LEFT] or keys[K_RIGHT] or keys[K_UP] or keys[K_DOWN]:
+        #     self.move_ticker = 20
+        return self.steering
 
     # searching for 4 nearest neighbours:
     # 2 in the same line and 2 in other line
@@ -128,19 +133,28 @@ class Game:
         for v in (self.same_line + self.over_line):
             vel = v.y_vel
             dy = (self.vehicle.y - v.y)
+            dy = 200*np.sign(dy) if abs(dy) > 200 else dy
             dx = (self.vehicle.x - v.x)
-            state += [vel, dy, dx]
-        return np.array(state)
+            # state += [vel, dy, dx]
+            state += [vel, dy]
+        return np.array(state).astype(float)
 
     def reward(self, a):
         if self.is_collision():
             self.game_over = True
-            return -100000
+            return -10000
         r = 0
-        if self.last_a != a:
-            r += -200
         dst = -(self.vehicle.y - self.same_line[0].y)
-        r += dst
+        if dst > 0:
+            self.game_over = True
+            return 1000
+        if self.last_a != a:
+            r += -2
+        # if self.vehicle.line == 0:
+        #     r += -20
+        # dst = -(self.vehicle.y - self.same_line[0].y)
+        # dst = 0 if dst < 0 else dst
+        # r += dst
         r -= 1
         if self.vehicle.y < -2000:
             self.game_over = True
@@ -148,6 +162,7 @@ class Game:
         return r
 
     def move(self, targ_line):
+        # targ_line = self.process_keys()
         if targ_line == 0:
             targ_line = self.last_a
 
@@ -159,9 +174,9 @@ class Game:
         self.last_a = targ_line
 
         self.throttle, self.steering, self.brakes = self.vehicle.keep_line(targ_line, targ_vel)
-        # self.process_keys()
-        for _ in range(10):
-            self.do_frame()
+
+        self.do_frame(10)
+
         if not self.learning:
             self.render(targ_line, targ_vel)
 

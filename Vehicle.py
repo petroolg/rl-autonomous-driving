@@ -68,9 +68,9 @@ class Vehicle(RigidBody):
 
     @property
     def line(self):
-        if self.x < -25:
+        if self.x < -20:
             return -1
-        elif self.x > 25:
+        elif self.x > 20:
             return 1
         return 0
 
@@ -109,13 +109,18 @@ class Vehicle(RigidBody):
         ref = 30 if targ_line == 1 else -30
         err = ref - self.m_pos[0][0]
         derr = err - self.last_err
-        steering = err * 0.03 + derr*10
+        steering = err * 0.03 + derr*0.9
         # print(err)
-        if abs(np.linalg.norm(self.m_vel)) < abs(targ_vel):
-            throttle = 1
-        if abs(np.linalg.norm(self.m_vel)) > abs(targ_vel):
-            brakes = 1
-        steering = 1 if steering > 1 else steering
-        steering = -1 if steering < -1 else steering
+        err_vel = (abs(np.linalg.norm(self.m_vel)) - abs(targ_vel))[0]
+
+        steering = np.sign(steering) if abs(steering) > 1 else steering
+        if err_vel > 0:
+            brakes = err_vel * 0.1
+        else:
+            throttle = -err_vel * 3
+
+        throttle = 20 if abs(throttle) > 20 else throttle
+        brakes = 1 if abs(brakes) > 1 else brakes
+
         self.last_err = err
         return throttle, steering, brakes

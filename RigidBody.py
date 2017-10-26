@@ -83,7 +83,7 @@ class RigidBody:
         #     text2 = font.render(text2, True, (0, 0, 0))
         #     display.blit(text2, (0, 15))
 
-        text = font.render(str(self.id), True, (0, 0, 0))
+        text = font.render(str(self.m_vel[1]), True, (0, 0, 0))
         display.blit(text, (
             self.x - x + display.get_width() / 2 - text.get_width() / 2,
             self.y - y + display.get_height() / 2 - text.get_height() / 2))
@@ -101,18 +101,40 @@ class DummyVehicle:
         self.body = Rect(kwargs.get('x', 0.0), kwargs.get('y', 0.0), self.width, self.length, kwargs.get('angle', 0))
         self.m_vel = np.array([kwargs.get('x_vel', 0.0), kwargs.get('y_vel', 0.0)])[np.newaxis].T
         self.m_pos = np.array([kwargs.get('x', 0.0), kwargs.get('y', 0.0)])[np.newaxis].T
+        self.m_vel_ref = np.array([kwargs.get('x_vel_ref', 0.0), kwargs.get('y_vel_ref', 0.0)])[np.newaxis].T
+        self.next_dist = kwargs.get('next_dist', None)  # distance to next car
+        self.line = np.sign(self.x)
+        # self.m_acc = np.array([0.0, 0.0])[np.newaxis].T
+        self.cntr_dist = 120.0  # distance to keep between me and next car
 
     def draw(self, display, font=None, x=0, y=0):
         self.body.translate(self.x, self.y)
         pygame.draw.polygon(display, self.color,
                             self.body.spirit(-x + display.get_width() / 2, -y + display.get_height() / 2))
-        text = font.render(str(self.id), True, (0, 0, 0))
+        text = font.render(str(self.m_vel[1]), True, (0, 0, 0))
         display.blit(text,
                      (self.x - x + display.get_width() / 2 - text.get_width() / 2,
                       self.y - y + display.get_height() / 2 - text.get_height() / 2))
 
     def update(self, timestep):
+        self.strategy()
+        self.control()
         self.m_pos += self.m_vel * timestep
+
+    def control(self):
+        if self.next_dist is not None:
+            dist_err = (self.y - self.next_dist) - self.cntr_dist
+            throttle = dist_err / 6.0
+            throttle = 1.0 if throttle > 1.0 else throttle
+            throttle = -1.0 if throttle < -1.0 else throttle
+            self.m_vel[1] = self.m_vel[1] - throttle
+            self.m_vel[1] = -60.0 if self.m_vel[1] < -60.0 else self.m_vel[1]
+            self.m_vel[1] = -40.0 if self.m_vel[1] > -40.0 else self.m_vel[1]
+
+    def strategy(self, a=0.005):
+        if np.random.rand() < a:
+            self.cntr_dist = 130.0 if self.cntr_dist > 130.0 else 220.0
+
 
     @property
     def x(self):
@@ -123,12 +145,8 @@ class DummyVehicle:
         return self.m_pos[1][0]
 
     @property
-    def line(self):
-        return np.sign(self.x)
-
-    @property
     def y_vel_ref(self):
-        return self.m_vel[1]
+        return self.m_vel_ref[1]
 
     @property
     def x_vel(self):

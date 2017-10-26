@@ -1,3 +1,4 @@
+import sys
 from matplotlib import pyplot as plt
 from sklearn.kernel_approximation import RBFSampler
 from sklearn.linear_model import SGDRegressor
@@ -9,28 +10,9 @@ from RigidBody import DummyVehicle
 from Vehicle import Vehicle
 
 
-
-
 class FeatureTransformer:
     def __init__(self):
         N = 20000
-        # observation_examples = np.hstack((np.random.random((N, 1)) * 60.0 - 30.0,  # vx
-        #                                   -np.random.random((N, 1)) * 100.0,  # vy
-        #                                   np.random.random((N, 1)) * 80.0 - 40.0,  # x
-        #                                   -np.random.random((N, 1)) * 100.0,  # vy1
-        #                                   np.random.random((N, 1)) * 400.0 - 200.0,  # d1
-        #                                   -np.random.random((N, 1)) * 70.0,  # dx1
-        #                                   -np.random.random((N, 1)) * 100.0,  # vy2
-        #                                   np.random.random((N, 1)) * 400.0 - 200.0,  # d2
-        #                                   -np.random.random((N, 1)) * 70.0,  # dx2
-        #                                   -np.random.random((N, 1)) * 100.0,  # vy3
-        #                                   np.random.random((N, 1)) * 400.0 - 200.0,  # d3
-        #                                   np.random.random((N, 1)) * 70.0,  # dx3
-        #                                   -np.random.random((N, 1)) * 100.0,  # vy4
-        #                                   np.random.random((N, 1)) * 400.0 - 200.0,  # d4
-        #                                   np.random.random((N, 1)) * 70.0 # dx4
-        #                                   ))
-
         observation_examples = np.hstack((np.random.random((N, 1)) * 60.0 - 30.0,  # vx
                                           -np.random.random((N, 1)) * 100.0,  # vy
                                           np.random.random((N, 1)) * 80.0 - 40.0,  # x
@@ -49,13 +31,13 @@ class FeatureTransformer:
         featurizer = FeatureUnion([
             ('rbf1', RBFSampler(gamma=0.05, n_components=700)),
             ('rbf2', RBFSampler(gamma=0.1, n_components=700)),
-            ('rbf3', RBFSampler(gamma=0.3, n_components=700)),
-            ('rbf4', RBFSampler(gamma=0.5, n_components=700)),
-            ('rbf5', RBFSampler(gamma=0.6, n_components=700)),
-            ('rbf6', RBFSampler(gamma=0.7, n_components=700)),
-            ('rbf7', RBFSampler(gamma=0.8, n_components=700)),
-            ('rbf8', RBFSampler(gamma=0.9, n_components=700)),
-            ('rbf9', RBFSampler(gamma=1.0, n_components=700))
+            # ('rbf3', RBFSampler(gamma=0.3, n_components=700)),
+            # ('rbf4', RBFSampler(gamma=0.5, n_components=700)),
+            # ('rbf5', RBFSampler(gamma=0.6, n_components=700)),
+            # ('rbf6', RBFSampler(gamma=0.7, n_components=700)),
+            # ('rbf7', RBFSampler(gamma=0.8, n_components=700)),
+            # ('rbf8', RBFSampler(gamma=0.9, n_components=700)),
+            # ('rbf9', RBFSampler(gamma=1.0, n_components=700))
         ])
 
         examples = featurizer.fit_transform(scaler.transform(observation_examples))
@@ -68,10 +50,8 @@ class FeatureTransformer:
 
 
 class Model:
-    def __init__(self, env, feature_transformer: FeatureTransformer, learning_rate=0.05, start_over=True):
-        self.env = env
-        env.init_game(learning=False)
-        game = env.game
+    def __init__(self, feature_transformer: FeatureTransformer, learning_rate=0.05, start_over=True):
+        game = init_game(learning=False)
         game.neighbours()
         s = game.get_state()
         self.train_tuples, self.n_ex = np.load('train_tuples.npy')
@@ -108,82 +88,69 @@ class Model:
             return np.argmax(pred) - 1
 
 
+def init_game(learning=True):
+    car = Vehicle(y_vel=-30, x=30)
+    other_cars = []
+    colors = [blue, white, l_blue, violet, green, orange]
+    y = 20
+    n = np.random.randint(5,9)
+
+    other_cars.append(
+        DummyVehicle(id=3, color=blue, x=-30.0, y=y, y_vel=-50, y_vel_ref=-50,
+                     next_dist=None))
+
+    for i in range(4, n+4):
+        c = colors[np.random.choice(6)]
+        y += np.random.choice([60, 100])
+        other_cars.append(
+            DummyVehicle(id=i, color=c, x=-30.0, y=y, y_vel=-50, y_vel_ref=-50,
+                         next_dist=other_cars[-1].m_pos[1]))
+
+    other_cars.append(
+        DummyVehicle(id=1, color=green, x=30.0, y=100.0, y_vel=-30, y_vel_ref=-30))
+    other_cars.append(
+        DummyVehicle(id=2, color=red, x=30.0, y=-60.0, y_vel=-30, y_vel_ref=-30))
+
+    return Game(car, other_cars, learning)
+
 class RL:
-    def __init__(self):
+    def __init__(self, model):
         self.GAMMA = 0.9
+        self.model = model
 
-    def init_game(self, learning=True):
-        car = Vehicle(y_vel=-30, x=30)
-        other_cars = []
-        colors = [blue, white, l_blue, violet, green, orange]
-        y = -40
-        n = np.random.randint(5,9)
-        for i in range(n):
-            c = colors[np.random.choice(6)]
-            y += np.random.choice([60, 100, 300])
-            other_cars.append(
-                DummyVehicle(id=i+3, width=10, length=20, color=c, x=-30.0, y=y, y_vel=-50, y_vel_ref=-50,
-                             line_ref=-1))
+    def play_one(self, n, eps=0.05, gamma=0.99):
+        game = init_game(learning=False)
 
-        other_cars.append(
-            DummyVehicle(id=1, width=10, length=20, color=green, x=30.0, y=100.0, y_vel=-30, y_vel_ref=-30, line_ref=1))
-        other_cars.append(
-            DummyVehicle(id=2, width=10, length=20, color=red, x=30.0, y=-60.0, y_vel=-30, y_vel_ref=-30, line_ref=1))
-
-        # y = 100
-        # n2 = np.random.randint(1, 3)
-        # for i in range(n2):
-        #     c = colors[np.random.choice(6)]
-        #     y += np.random.randint(50, 100)
-        #     other_cars.append(
-        #         DummyVehicle(id=i + 3 + n, width=10, length=20, color=c, x=30.0, y=y, y_vel=-30, y_vel_ref=-30,
-        #                      line_ref=1))
-
-
-        self.game = Game(car, other_cars, learning)
-
-    def random_action(self, a_i, eps=0.1):
-        fort = np.random.random()
-        if fort < (1 - eps):
-            return self.game.all_actions[a_i]
-        else:
-            poss_act = self.game.all_actions.copy()
-            # if windy:
-            #     poss_act.remove(a)
-            return np.random.choice(poss_act)
-
-
-def play_one(model, n, eps=0.05, gamma=0.99):
-    model.env.init_game(learning=False)
-    game = model.env.game
-    game.neighbours()
-    s = game.get_state()
-    a = model.sample_action(s, 0.05)
-
-    game.game_over = False
-    iters = 0
-    total_rew = 0
-
-    while not game.game_over:
-
-        if n < 0:
-            a = int(game.process_keys())
-        else:
-            a = model.sample_action(s, eps)
-        prev_s = s
-
-        rew = game.move(a)
+        game.neighbours()
         s = game.get_state()
+        a = self.model.sample_action(s, 0.05)
 
-        total_rew += rew
+        game.game_over = False
+        iters = 0
+        total_rew = 0
+        q, quit = False, False
 
-        G = rew + gamma * np.max(model.predict(s))
-        model.update(prev_s, a, G)
-        model.train_tuples = np.append(model.train_tuples, np.array([[prev_s, a, G]]), axis=0)
+        while True:# not game.game_over:
 
-        iters += 1
-        # time.sleep(0.1)
-    return total_rew
+            if n < 10:
+                a = int(game.gui.process_keys())
+            else:
+                a = self.model.sample_action(s, eps)
+            prev_s = s
+
+            rew, q = game.move(a)
+            s = game.get_state()
+
+            total_rew += rew
+
+            G = rew + gamma * np.max(self.model.predict(s))
+            self.model.update(prev_s, a, G)
+            self.model.train_tuples = np.append(self.model.train_tuples, np.array([[prev_s, a, G]]), axis=0)
+
+            iters += 1
+            quit |= q
+            # time.sleep(0.1)
+        return total_rew, quit
 
 
 def plot_running_avg(totalrewards: np.ndarray):
@@ -201,43 +168,49 @@ def init_trn():
 
 
 def main():
-    env = RL()
-    ft = FeatureTransformer()
-    model = Model(env, ft, 'constant', start_over=True)
 
+    ft = FeatureTransformer()
+    model = Model(ft, 'constant', start_over=True)
+    rl = RL(model)
     N = 300
     k = model.K
-    totalrewards = np.empty(N)
-    gamma = 0.99
+    totalrewards = []
+    gamma = 1.0
     manual_training = False
 
     # init_trn()
 
-    if not manual_training:
-        if model.train_tuples[0] == [0, 0, 0]:
-            model.train_tuples = np.delete(model.train_tuples, 0 ,0)
-
-        np.random.shuffle(model.train_tuples)
-        for tup in model.train_tuples:
-            model.update(*tup)
+    # if not manual_training:
+    #     if model.train_tuples[0] == [0, 0, 0]:
+    #         model.train_tuples = np.delete(model.train_tuples, 0 ,0)
+    #
+    #     np.random.shuffle(model.train_tuples)
+    #     for tup in model.train_tuples:
+    #         model.update(*tup)
 
     for i in range(k, N + k):
         eps = 0.5 / np.sqrt(i + 1)
         # eps = 0
-        totalreward = play_one(model, i, eps=eps, gamma=gamma)
-        totalrewards[i - k] = totalreward
+        totalreward, quit = rl.play_one(i, eps=eps, gamma=gamma)
+        totalrewards.append(totalreward)
 
         print("episode:", i, "total reward:", totalreward, "eps:", eps)
         np.save('models', [np.array(model.models), i])
+        if quit:
+            break
         # np.save('train_tuples',np.array([model.train_tuples, model.n_ex+i]))
+    totalrewards = np.array(totalrewards)
     print("avg reward for last 100 episodes:", totalrewards[-100:].mean())
-    print("total steps:", totalrewards.sum())
+
 
     plt.plot(totalrewards)
     plt.title('Rewards')
     plt.show()
 
     plot_running_avg(totalrewards)
+
+    pygame.quit()
+    sys.exit()
 
 
 if __name__ == '__main__':

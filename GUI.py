@@ -1,5 +1,6 @@
 import pygame
 from pygame.locals import K_SPACE, K_DOWN, K_LEFT, K_RIGHT, K_UP, QUIT
+import numpy as np
 
 white = (255, 255, 255)
 black = (0, 0, 0)
@@ -60,7 +61,7 @@ class Gui:
 
     def process_keys(self):
         keys = pygame.key.get_pressed()
-
+        lst = np.array([0,0,0])
         if keys[K_RIGHT]:
             self.steering = 1
         elif keys[K_LEFT]:
@@ -78,4 +79,5 @@ class Gui:
         #     self.brakes -= 0.1 if self.brakes > 0.1 else 0
         # if keys[K_LEFT] or keys[K_RIGHT] or keys[K_UP] or keys[K_DOWN]:
         #     self.move_ticker = 20
-        return self.steering
+        lst[self.steering+1] = 1.0
+        return lst

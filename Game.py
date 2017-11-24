@@ -1,6 +1,9 @@
 import numpy as np
 from GUI import *
 
+def clamp(n, smallest, largest):
+    return max(smallest, min(n, largest))
+
 class Game:
 
     def __init__(self, aut_car, other_cars, learning=True):

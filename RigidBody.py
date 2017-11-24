@@ -83,7 +83,7 @@ class RigidBody:
         #     text2 = font.render(text2, True, (0, 0, 0))
         #     display.blit(text2, (0, 15))
 
-        text = font.render(str(self.m_vel[1]), True, (0, 0, 0))
+        text = font.render('%d'%self.m_vel[1], True, (0, 0, 0))
         display.blit(text, (
             self.x - x + display.get_width() / 2 - text.get_width() / 2,
             self.y - y + display.get_height() / 2 - text.get_height() / 2))
@@ -111,7 +111,7 @@ class DummyVehicle:
         self.body.translate(self.x, self.y)
         pygame.draw.polygon(display, self.color,
                             self.body.spirit(-x + display.get_width() / 2, -y + display.get_height() / 2))
-        text = font.render(str(self.m_vel[1]), True, (0, 0, 0))
+        text = font.render('%d'%self.m_vel[1], True, (0, 0, 0))
         display.blit(text,
                      (self.x - x + display.get_width() / 2 - text.get_width() / 2,
                       self.y - y + display.get_height() / 2 - text.get_height() / 2))
